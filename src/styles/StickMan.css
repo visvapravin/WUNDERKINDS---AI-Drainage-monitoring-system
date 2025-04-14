@@ -1,0 +1,106 @@
+@keyframes walk {
+  0%, 100% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-30%) rotate(10deg);
+  }
+  75% {
+    transform: translateX(-70%) rotate(-10deg);
+  }
+}
+
+.stick-man-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.stick-man {
+  position: relative;
+  width: 40px;
+  height: 80px;
+  animation: walk 2s infinite ease-in-out;
+}
+
+.head {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #2563eb;
+}
+
+.body {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 30px;
+  background-color: #2563eb;
+}
+
+.left-arm, .right-arm {
+  position: absolute;
+  top: 25px;
+  width: 4px;
+  height: 20px;
+  background-color: #2563eb;
+}
+
+.left-arm {
+  left: 8px;
+  transform-origin: top;
+  animation: swing-left 1s infinite ease-in-out;
+}
+
+.right-arm {
+  right: 8px;
+  transform-origin: top;
+  animation: swing-right 1s infinite ease-in-out;
+}
+
+.left-leg, .right-leg {
+  position: absolute;
+  top: 50px;
+  width: 4px;
+  height: 25px;
+  background-color: #2563eb;
+}
+
+.left-leg {
+  left: 12px;
+  transform-origin: top;
+  animation: walk-left 1s infinite ease-in-out;
+}
+
+.right-leg {
+  right: 12px;
+  transform-origin: top;
+  animation: walk-right 1s infinite ease-in-out;
+}
+
+@keyframes swing-left {
+  0%, 100% { transform: rotate(30deg); }
+  50% { transform: rotate(-30deg); }
+}
+
+@keyframes swing-right {
+  0%, 100% { transform: rotate(-30deg); }
+  50% { transform: rotate(30deg); }
+}
+
+@keyframes walk-left {
+  0%, 100% { transform: rotate(-30deg); }
+  50% { transform: rotate(30deg); }
+}
+
+@keyframes walk-right {
+  0%, 100% { transform: rotate(30deg); }
+  50% { transform: rotate(-30deg); }
+} 
