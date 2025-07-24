@@ -23,9 +23,9 @@ function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <nav className="bg-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <h1 className="text-xl font-bold text-blue-600">DrainageAI</h1>
@@ -57,7 +57,7 @@ function HomePage() {
             />
           ))}
           <div className="absolute inset-0 bg-black bg-opacity-40">
-            <div className="h-full flex items-center justify-center">
+            <div className="h-full flex flex-col items-center justify-center px-4 text-center">
               <div className="text-center text-white">
                 <h2 className="text-4xl font-bold mb-4">Smart Drainage Monitoring System</h2>
                 <p className="text-xl">Real-time monitoring and flood prediction powered by AI</p>

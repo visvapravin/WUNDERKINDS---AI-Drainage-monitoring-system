@@ -19,3 +19,5 @@ const App = () => {
 };
 
 export default App;
+
+// To update landing page images, modify the HomePage component in src/pages/HomePage.tsx.

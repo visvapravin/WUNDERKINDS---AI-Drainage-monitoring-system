@@ -7,7 +7,7 @@ import { Device } from '../types/Device';
 
 const containerStyle = {
   width: '100%',
-  height: '500px',
+  height: '500px', // Increased height for better usability
   borderRadius: '0'
 };
 
@@ -25,7 +25,7 @@ const mapOptions = {
   streetViewControl: false,
   rotateControl: true,
   fullscreenControl: true,
-  gestureHandling: 'greedy' as const,
+  gestureHandling: 'greedy' as const, // Allow smooth and unrestricted mouse/touch panning
   clickableIcons: false,
 };
 
@@ -93,15 +93,15 @@ const Map: React.FC<MapProps> = ({ onClose, onDeviceSelect }) => {
         Object.entries(devicesData).forEach(([deviceId, deviceData]: [string, any]) => {
           // Get the last entry for this device
           const entries = Object.entries(deviceData);
-          const lastEntry = entries.reduce((latest: any, current: any) => {
+          const lastEntry = entries.reduce((latest: [string, any] | undefined, current: [string, any]) => {
             if (!latest || (current[1].timestamp && current[1].timestamp > latest[1].timestamp)) {
               return current;
             }
             return latest;
-          }, null);
+          }, undefined);
 
           if (lastEntry) {
-            const latestData = lastEntry[1];
+            const latestData = (lastEntry as [string, any])[1] as Record<string, any>;
             const lat = parseFloat(latestData.lat);
             const lng = parseFloat(latestData.lng);
 
@@ -172,7 +172,7 @@ const Map: React.FC<MapProps> = ({ onClose, onDeviceSelect }) => {
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="relative bg-white rounded-lg shadow-lg w-[900px] max-h-[90vh] overflow-hidden">
+      <div className="relative bg-white rounded-lg shadow-lg w-[1200px] max-h-[95vh] overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <MapIcon className="h-5 w-5 text-gray-600" />
@@ -237,7 +237,7 @@ const Map: React.FC<MapProps> = ({ onClose, onDeviceSelect }) => {
               <Filter className="h-4 w-4 text-gray-500" />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
+                onChange={(e) => setStatusFilter(e.target.value as "all" | "normal" | "warning" | "danger")}
                 className="py-2 px-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Status</option>

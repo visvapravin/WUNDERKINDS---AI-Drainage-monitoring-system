@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Bell, Map as MapIcon, LogOut, Sun, Droplets, Wind, AlertTriangle, CloudRain, CloudDrizzle, CloudLightning } from 'lucide-react';
+import { Bell, Map as MapIcon, LogOut, Sun, Droplets, AlertTriangle, CloudDrizzle, CloudLightning, CloudRain, Wind } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import NotificationPopup from '../components/NotificationPopup';
 import { db } from '../firebase';
@@ -51,22 +51,28 @@ interface RainStatus {
 }
 
 function Dashboard() {
-  const { logout } = useAuth();
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!currentUser) {
+      navigate('/login', { replace: true });
+    }
+  }, [currentUser, navigate]);
   const [searchlight, setSearchlight] = useState(false);
-  const [notifications, _setNotifications] = useState<string[]>([]);
+  const [notifications] = useState<string[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<Device>(dummyDevice);
   const [devices, setDevices] = useState<Device[]>([]);
-  const [waterLevelData, _setWaterLevelData] = useState(dummyGraphData);
+  const [waterLevelData] = useState(dummyGraphData);
   const [rainStatus, setRainStatus] = useState<RainStatus>({
     status: 'Not Raining',
     intensity: 0,
     lastUpdated: new Date().toISOString()
   });
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
-  const [downloadRange, setDownloadRange] = useState('24h');
+  const [downloadRange] = useState('24h');
 
   useEffect(() => {
     const devicesRef = ref(db, 'devices');
@@ -251,7 +257,7 @@ function Dashboard() {
       });
 
       const response = await fetch(
-        `https://api.weatherapi.com/v1/current.json?key=5c0111761a66467e97b80848251404&q=${device.lat},${device.lng}&aqi=no`
+        `https://api.weatherapi.com/v1/current.json?key=${import.meta.env.VITE_WEATHER_API_KEY}&q=${device.lat},${device.lng}&aqi=no`
       );
       
       if (!response.ok) {
@@ -317,21 +323,28 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-100 relative">
-      {/* Map Component */}
+      {/* Map Modal & Overlay */}
       {showMap && (
-        <div className="fixed inset-0 z-[9999] bg-white">
-          <Map 
-            onClose={() => {
-              console.log('Closing map...');
-              setShowMap(false);
-            }} 
-            onDeviceSelect={(device: Device) => {
-              console.log('Device selected:', device);
-              setSelectedDevice(device);
-              setShowMap(false);
-            }}
-          />
-        </div>
+        <>
+          {/* Overlay with blur and opacity */}
+          <div className="fixed inset-0 z-[9998] bg-black/30 backdrop-blur-sm transition-all duration-300" />
+          {/* Map Modal - responsive */}
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center px-2 sm:px-6">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl p-0 overflow-hidden flex flex-col" style={{ minHeight: '60vh', maxHeight: '90vh' }}>
+              <Map 
+                onClose={() => {
+                  console.log('Closing map...');
+                  setShowMap(false);
+                }} 
+                onDeviceSelect={(device: Device) => {
+                  console.log('Device selected:', device);
+                  setSelectedDevice(device);
+                  setShowMap(false);
+                }}
+              />
+            </div>
+          </div>
+        </>
       )}
 
       {/* Notifications */}
@@ -386,10 +399,10 @@ function Dashboard() {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className={`max-w-7xl mx-auto px-4 py-6 transition-all duration-300 ${showMap ? 'blur-sm opacity-60 pointer-events-none' : ''}`}> 
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
           <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
               <h2 className="text-lg font-semibold">Air Quality</h2>
               <Sun className={selectedDevice.airQuality === 'Good' ? 'text-green-500' : 'text-red-500'} />
             </div>
@@ -399,7 +412,7 @@ function Dashboard() {
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Searchlight Control</h2>
+          <h2 className="text-base md:text-lg font-semibold mb-4">Searchlight Control</h2>
             <button
               onClick={() => setSearchlight(!searchlight)}
               className={`w-full py-2 px-4 rounded-md ${
@@ -411,7 +424,7 @@ function Dashboard() {
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
               <h2 className="text-lg font-semibold">Water Flow Speed</h2>
               <Wind className="text-blue-500" />
             </div>
@@ -419,7 +432,7 @@ function Dashboard() {
           </div>
 
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-4">
+          <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold">Rain Status</h2>
                 {getRainIcon(rainStatus.status)}
@@ -462,7 +475,7 @@ function Dashboard() {
             </div>
 
             <div className="bg-white rounded-lg shadow p-4 h-[200px] flex items-center justify-center">
-              <div className="stick-man-container w-full h-full">
+              <div className="stick-man-container w-full h-full min-h-[120px] sm:min-h-[180px] md:min-h-[200px]">
                 <div className="stick-man">
                   <div className="head"></div>
                   <div className="body"></div>
@@ -476,33 +489,34 @@ function Dashboard() {
           </div>
 
           <div className="bg-white rounded-lg shadow p-6 col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-4">
-                <h2 className="text-lg font-semibold">Water Level</h2>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium
-                  ${getDeviceStatus(selectedDevice).status === 'Danger' ? 'bg-red-100 text-red-800' : 
-                    getDeviceStatus(selectedDevice).status === 'Warning' ? 'bg-yellow-100 text-yellow-800' : 
-                    'bg-green-100 text-green-800'}`}>
-                  {getDeviceStatus(selectedDevice).status}
-                </span>
-              </div>
-              <button
-                onClick={() => setShowDownloadOptions(true)}
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Download Data
-              </button>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+            <div className="flex items-center space-x-4">
+              <h2 className="text-lg font-semibold">Water Level</h2>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium
+                ${getDeviceStatus(selectedDevice).status === 'Danger' ? 'bg-red-100 text-red-800' : 
+                  getDeviceStatus(selectedDevice).status === 'Warning' ? 'bg-yellow-100 text-yellow-800' : 
+                  'bg-green-100 text-green-800'}`}>
+                {getDeviceStatus(selectedDevice).status}
+              </span>
             </div>
+            <button
+              onClick={() => setShowDownloadOptions(true)}
+              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download Data
+            </button>
+          </div>
             <div className="flex items-center gap-2 mb-4">
               <span className="text-4xl font-bold">{selectedDevice.waterLevel.toFixed(2)}</span>
               <span className="text-gray-500">m</span>
             </div>
             
             <div className="h-64 mt-4">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="mt-8">
+              <ResponsiveContainer width="100%" height="80%" minWidth={150} minHeight={250}>
                 <LineChart data={waterLevelData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="time" />
@@ -522,10 +536,11 @@ function Dashboard() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            </div>
           </div>
 
           <div className="bg-white rounded-lg shadow p-6 col-span-full">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
               <h2 className="text-lg font-semibold">Prediction</h2>
               <AlertTriangle className="text-yellow-500" />
             </div>
@@ -538,9 +553,9 @@ function Dashboard() {
 
       {/* Download Options Dialog */}
       {showDownloadOptions && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-[9999]">
-          <div className="bg-white rounded-lg shadow-xl w-[400px] p-6 animate-in fade-in slide-in-from-bottom-4 duration-200">
-            <h3 className="text-lg font-semibold mb-4">Select Data Range</h3>
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-[9999] px-2 sm:px-0">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-xs sm:max-w-md p-4 sm:p-6 animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <h3 className="text-base sm:text-lg font-semibold mb-4">Select Data Range</h3>
             <div className="space-y-3">
               {[
                 { value: '24h', label: 'Last 24 Hours', icon: '🕐' },
@@ -551,19 +566,19 @@ function Dashboard() {
                 <button
                   key={option.value}
                   onClick={() => downloadDeviceData(option.value)}
-                  className={`w-full p-3 flex items-center gap-3 rounded-lg border transition-all
+                  className={`w-full p-2 sm:p-3 flex items-center gap-2 sm:gap-3 rounded-lg border transition-all
                     ${downloadRange === option.value 
                       ? 'border-blue-500 bg-blue-50 text-blue-700' 
                       : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50'}`}
                 >
-                  <span className="text-2xl">{option.icon}</span>
-                  <span className="font-medium">{option.label}</span>
+                  <span className="text-xl sm:text-2xl">{option.icon}</span>
+                  <span className="font-medium text-sm sm:text-base">{option.label}</span>
                 </button>
               ))}
             </div>
             <button
               onClick={() => setShowDownloadOptions(false)}
-              className="mt-4 w-full py-2 text-gray-600 hover:text-gray-800"
+              className="mt-4 w-full py-2 text-gray-600 hover:text-gray-800 text-sm sm:text-base"
             >
               Cancel
             </button>

@@ -7,10 +7,10 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
+    // "allowImportingTsExtensions": true, // Option 'allowImportingTsExtensions' can only be used when either 'noEmit' or 'emitDeclarationOnly' is set.
     "isolatedModules": true,
     "moduleDetection": "force",
-    "noEmit": false,
+    // "noEmit": true,
 
     /* Linting */
     "strict": true,
