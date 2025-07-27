@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment
+.env
+.venv/
+venv/
+ENV/
+
+# Firebase credentials and secrets
+wunderkinds-101105-firebase-adminsdk-*.json
+*.firebase-adminsdk-*.json
+
+# Data and models (optional, keep if you want to share trained models)
+models/
+drainage_data.csv
+shap_summary.png
+test_data.npz
+
+# VSCode
+.vscode/
