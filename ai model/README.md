@@ -1,5 +1,5 @@
 
-# Drainage Data AI Server Project
+# Drainage Data AI Project
 
 This repository contains a complete, production-ready AI server pipeline for smart drainage monitoring. It includes:
 - Synthetic data generation
@@ -194,6 +194,69 @@ python ai_server_coordinator.py
 - **Class imbalance warnings**: SMOTE is used to balance classes; check logs for class distribution after resampling.
 - **UserWarning: X does not have valid feature names**: This is safe to ignore; it occurs when using NumPy arrays with scikit-learn transformers.
 
+
+## Step-by-Step: How to Run the AI Pipeline on Your System
+
+Follow these steps to set up and run the complete AI drainage monitoring pipeline:
+
+### 1. Clone the Repository
+Clone or download this repository to your local machine.
+
+### 2. Install Python 3.12 and Required Packages
+- Install Python 3.12 (recommended).
+- (Optional) Create and activate a virtual environment for Python 3.12.
+- Install all required packages:
+  ```bash
+  pip install pandas numpy matplotlib xgboost scikit-learn joblib shap cupy-cuda12x imbalanced-learn firebase-admin
+  ```
+  > Replace `cupy-cuda12x` with the version matching your CUDA (e.g., `cupy-cuda120` for CUDA 12.0).
+
+### 3. Download Firebase Admin SDK Credentials
+- Go to the Firebase Console → Project Settings → Service Accounts.
+- Click "Generate new private key" and download the JSON file.
+- Place it in the project root (e.g., `wunderkinds-101105-firebase-adminsdk-xxxx.json`).
+
+### 4. Generate the Synthetic Dataset
+- Open a terminal in the `ai model/dataset/` directory.
+- Run:
+  ```bash
+  python generate_3m_drainage_dataset.py
+  ```
+- This will create `drainage_data.csv` with 3 million rows.
+
+### 5. Train the XGBoost Model
+- Open a terminal in the `ai model/` directory.
+- Run:
+  ```bash
+  python scripts/train_xgboost_drainage_model.py
+  ```
+- This will train the model, save artifacts in `models/`, and generate a SHAP plot.
+
+### 6. (Optional) Test Prediction on a Device
+- Use the prediction script to test on a sample device:
+  ```bash
+  python scripts/predict_drainage.py
+  ```
+
+### 7. Connect to Firebase and Run the Full Pipeline
+- Ensure your Firebase credentials JSON is in the root directory.
+- Start the main coordinator script:
+  ```bash
+  python ai_server_coordinator.py
+  ```
+- This will:
+  - Fetch device data from Firebase every 3 minutes, predict, and update Firebase.
+  - Retrain the model weekly using user feedback.
+
+### 8. (Optional) Manual Retraining
+- To manually retrain the model using feedback:
+  ```bash
+  python scripts/retrain_xgboost_from_feedback.py
+  ```
+
+---
+
+You now have a fully automated AI pipeline for smart drainage monitoring running on your system!
 
 ## References
 - [imbalanced-learn documentation (SMOTE)](https://imbalanced-learn.org/)
