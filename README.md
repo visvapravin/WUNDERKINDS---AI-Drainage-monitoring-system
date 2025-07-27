@@ -152,18 +152,14 @@ For ideas or issues, please open a discussion or issue ticket.
 
 ---
 
+
 ## 👥 Authors & Contributors
 
-
-| Name           | GitHub                    | Role              |
-| -------------- | ------------------------- | ----------------- |
-| visvapravin R  | [@visvapravin](#)         | Core Developer    |
-| swashinie R    | [@Swashinie](#)           | Co-Developer      |
-
-*Feel free to add more contributors as your team grows!*
-
-
----
+| Name             | GitHub                                              | Role              |
+| ---------------- | --------------------------------------------------- | ----------------- |
+| visvapravin R    | [@visvapravin](https://github.com/visvapravin)      | Core Developer    |
+| swashinie R      | [@Swashinie](https://github.com/Swashinie)          | Co-Developer      |
+| Tharanitharan K  | [@TharanitharanK](https://github.com/TharanitharanK)| Contributor       |
 
 ## 📄 License
 
