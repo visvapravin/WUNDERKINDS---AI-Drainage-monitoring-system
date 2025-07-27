@@ -161,10 +161,11 @@ For ideas or issues, please open a discussion or issue ticket.
 | swashinie R      | [@Swashinie](https://github.com/Swashinie)          | Co-Developer      |
 | Tharanitharan K  | [@TharanitharanK](https://github.com/TharanitharanK)| Contributor       |
 
+
 ## 📄 License
 
-This project is intended for educational and portfolio purposes only.
-For production or commercial use, please contact the project owner for permission and licensing details.
+This project is licensed under the [MIT License](./LICENSE).
+You are free to use, modify, and distribute this software, provided you include the original copyright.
 
 ---
 
