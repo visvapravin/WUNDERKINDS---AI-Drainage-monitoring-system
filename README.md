@@ -13,7 +13,13 @@
   <br/>
 </div>
 
+
 # Ai-DM-website
+
+---
+
+> **Note:**
+> This repository contains an `ai model` folder with a complete AI pipeline for smart drainage monitoring, including dataset generation, model training, and automation scripts. For detailed instructions on running the AI pipeline, refer to the separate `README.md` inside the `ai model` directory.
 
 ---
 
