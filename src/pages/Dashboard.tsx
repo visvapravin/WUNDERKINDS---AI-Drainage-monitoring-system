@@ -3,16 +3,9 @@ import { useState, useEffect } from 'react';
 import { useRef } from 'react';
 // Emoji faces for each score
 const feedbackEmojis = [
-  { emoji: '😡', label: 'Very Bad' },
-  { emoji: '😠', label: 'Bad' },
-  { emoji: '😕', label: 'Not Good' },
-  { emoji: '😐', label: 'Okay' },
-  { emoji: '😶', label: 'Average' },
-  { emoji: '🙂', label: 'Good' },
-  { emoji: '😊', label: 'Very Good' },
-  { emoji: '😃', label: 'Great' },
-  { emoji: '😁', label: 'Excellent' },
-  { emoji: '🤩', label: 'Perfect' },
+  { emoji: '🚫', label: 'Blocked' },
+  { emoji: '🌊', label: 'Overflow' },
+  { emoji: '✅', label: 'Normal' },
 ];
 
 function PredictionFeedback({ onSubmit, value, disabled }: { onSubmit: (score: number) => void, value: number | null, disabled?: boolean }) {
@@ -21,8 +14,8 @@ function PredictionFeedback({ onSubmit, value, disabled }: { onSubmit: (score: n
   const containerRef = useRef<HTMLDivElement>(null);
   return (
     <div className="flex flex-col gap-2 mt-3" ref={containerRef}>
-      <label className="text-sm text-gray-700 mb-1">How accurate was this prediction?</label>
-      <div className="flex gap-1 flex-wrap items-center justify-start relative" style={{ minHeight: 56, overflow: 'visible' }}>
+      <label className="text-sm text-gray-700 mb-1">What is the current status?</label>
+      <div className="flex gap-2 flex-wrap items-center justify-start relative" style={{ minHeight: 56, overflow: 'visible' }}>
         {feedbackEmojis.map((item, idx) => {
           const num = idx + 1;
           const isSelected = selected === num;
@@ -31,7 +24,7 @@ function PredictionFeedback({ onSubmit, value, disabled }: { onSubmit: (score: n
             <div key={num} className="relative flex flex-col items-center justify-end">
               <button
                 type="button"
-                className={`w-10 h-10 rounded-full border flex flex-col items-center justify-center text-xl font-semibold transition-all duration-200 relative
+                className={`w-14 h-14 rounded-full border flex flex-col items-center justify-center text-2xl font-semibold transition-all duration-200 relative
                   ${isSelected ? 'bg-blue-600 text-white border-blue-600 scale-110 shadow-lg' :
                     isHovered ? 'bg-blue-100 text-blue-700 border-blue-300 scale-105' :
                     'bg-white text-gray-700 border-gray-300 hover:bg-blue-50'}
@@ -40,11 +33,10 @@ function PredictionFeedback({ onSubmit, value, disabled }: { onSubmit: (score: n
                 onMouseEnter={() => setHovered(num)}
                 onMouseLeave={() => setHovered(null)}
                 disabled={disabled}
-                aria-label={`Rate ${num}: ${item.label}`}
+                aria-label={`Status: ${item.label}`}
               >
                 <span className="transition-transform duration-200" style={{ transform: isSelected ? 'scale(1.2)' : 'scale(1)' }}>{item.emoji}</span>
               </button>
-              {/* Tooltip always inside box */}
               <span
                 className="z-10 px-2 py-1 rounded bg-white border border-gray-200 shadow text-xs text-gray-600 whitespace-nowrap pointer-events-none select-none absolute left-1/2 -translate-x-1/2"
                 style={{
@@ -67,7 +59,7 @@ function PredictionFeedback({ onSubmit, value, disabled }: { onSubmit: (score: n
       </div>
       {selected && (
         <span className="text-xs text-blue-700 mt-1 flex items-center gap-1 animate-fade-in">
-          {feedbackEmojis[selected - 1].emoji} You rated: <span className="font-bold">{selected}/10</span> - {feedbackEmojis[selected - 1].label}
+          {feedbackEmojis[selected - 1].emoji} Status: <span className="font-bold">{feedbackEmojis[selected - 1].label}</span>
         </span>
       )}
     </div>
@@ -175,20 +167,31 @@ function Dashboard() {
     setPredictionFeedback(null);
   }, [selectedDevice?.id, selectedDevice?.prediction]);
 
+  // Actual status options for user to select if prediction is wrong
+  // No longer needed: actualStatusOptions
+
+  // Only 1-3 status scale is used now
+
   // Send feedback to Firebase for the selected device and prediction, only if not in cooldown
-  const handlePredictionFeedback = async (score: number) => {
+  const handlePredictionFeedback = async (selectedIdx: number) => {
     if (feedbackCooldown) return;
-    setPredictionFeedback(score);
+    setPredictionFeedback(selectedIdx);
     setFeedbackSubmitted(true);
     setFeedbackCooldown(true);
     try {
       if (selectedDevice && selectedDevice.id) {
-        // Use timestamp to uniquely identify feedback for a prediction
-        const feedbackRef = ref(db, `feedback/${selectedDevice.id}/${Date.now()}`);
-        await update(feedbackRef, {
-          prediction: selectedDevice.prediction,
-          feedback: score,
-          timestamp: new Date().toISOString(),
+        const selectedStatus = feedbackEmojis[selectedIdx - 1]?.label || '';
+        // Normalize prediction for comparison
+        const prediction = (selectedDevice.prediction || '').trim().toLowerCase();
+        const status = selectedStatus.trim().toLowerCase();
+        const score = prediction === status ? 1 : 0;
+        const deviceRef = ref(db, `devices/${selectedDevice.id}`);
+        await update(deviceRef, {
+          feedback: {
+            status: selectedStatus,
+            score,
+            feedbackTimestamp: new Date().toISOString(),
+          }
         });
         // Store last feedback time in localStorage
         const key = getFeedbackKey();
@@ -207,6 +210,8 @@ function Dashboard() {
       setFeedbackSubmitted(false);
     }
   };
+
+  // Remove accuracy and actual status logic, as only three statuses are now allowed
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   // Redirect to login if not authenticated
@@ -245,66 +250,62 @@ function Dashboard() {
         const activeDevices: Device[] = [];
 
         Object.entries(devicesData).forEach(([deviceId, deviceData]: [string, any]) => {
-          // Get the last entry for this device
-          const entries = Object.entries(deviceData);
-          const lastEntry = entries.reduce((latest: any, current: any) => {
-            if (!latest || (current[1].timestamp && current[1].timestamp > latest[1].timestamp)) {
-              return current;
-            }
-            return latest;
-          }, null);
-
-          if (lastEntry) {
-            const latestData = lastEntry[1];
-            const lat = parseFloat(latestData.lat);
-            const lng = parseFloat(latestData.lng);
-
+          // If deviceData is an object with direct fields (not time series)
+          if (deviceData && typeof deviceData === 'object' && deviceData.lat && deviceData.lng) {
+            const lat = parseFloat(deviceData.lat);
+            const lng = parseFloat(deviceData.lng);
             if (!isNaN(lat) && !isNaN(lng) && isFinite(lat) && isFinite(lng)) {
               const device: Device = {
                 id: deviceId,
                 name: `Device ${deviceId.split('_').pop()}`,
                 lat,
                 lng,
-                altitude: parseFloat(latestData.altitude || '0'),
-                satellites: parseInt(latestData.satellites || '0'),
-                speed: parseFloat(latestData.speed || '0'),
-                waterLevel: parseFloat(latestData.waterLevel || '0'),
-                waterFlow: parseFloat(latestData.waterFlow || '0.8'),
-                waterSpeed: parseFloat(latestData.waterSpeed || '0'),
-                status: latestData.status || 'Normal',
-                timestamp: latestData.timestamp || new Date().toISOString(),
-                airQuality: latestData.airQuality || 'Good',
-                isRaining: Boolean(latestData.isRaining),
-                prediction: latestData.prediction || 'No prediction available'
+                altitude: parseFloat(deviceData.altitude || '0'),
+                satellites: parseInt(deviceData.satellites || '0'),
+                speed: parseFloat(deviceData.speed || '0'),
+                waterLevel: parseFloat(deviceData.waterLevel || '0'),
+                waterFlow: parseFloat(deviceData.waterFlow || '0.8'),
+                waterSpeed: parseFloat(deviceData.waterSpeed || '0'),
+                status: deviceData.status || 'Normal',
+                timestamp: deviceData.timestamp || new Date().toISOString(),
+                airQuality: deviceData.airQuality || 'Good',
+                isRaining: Boolean(deviceData.isRaining),
+                prediction: deviceData.prediction || 'No prediction available'
               };
               activeDevices.push(device);
-
-              // --- Anomaly detection and notification logic ---
-              // 1. Water level anomaly
-              if (device.waterLevel >= 2.0) {
-                sendNotification('Anomaly: Water level is very high!');
+            }
+          } else {
+            // If deviceData is a time series (object of entries)
+            const entries = Object.entries(deviceData);
+            const lastEntry = entries.reduce((latest: any, current: any) => {
+              if (!latest || (current[1].timestamp && current[1].timestamp > latest[1].timestamp)) {
+                return current;
               }
-              // 2. Harmful gas (simulate: airQuality not Good)
-              if (device.airQuality && device.airQuality !== 'Good') {
-                sendNotification(`Anomaly: Harmful gas detected (${device.airQuality})!`);
-              }
-              // 3. Heavy rain
-              if (latestData.rainStatus && latestData.rainStatus.status === 'Heavy Raining') {
-                sendNotification('Anomaly: Heavy rain detected!');
-              }
-              // 4. Very low or very high water flow
-              if (device.waterFlow < 0.2) {
-                sendNotification('Anomaly: Water flow is very low!');
-              }
-              if (device.waterFlow > 2.0) {
-                sendNotification('Anomaly: Water flow is very high!');
-              }
-              // 5. Speed anomaly (simulate: speed > 5 or < 0.1)
-              if (device.speed > 5) {
-                sendNotification('Anomaly: Device speed is abnormally high!');
-              }
-              if (device.speed < 0.1) {
-                sendNotification('Anomaly: Device speed is abnormally low!');
+              return latest;
+            }, null);
+            if (lastEntry) {
+              const latestData = lastEntry[1];
+              const lat = parseFloat(latestData.lat);
+              const lng = parseFloat(latestData.lng);
+              if (!isNaN(lat) && !isNaN(lng) && isFinite(lat) && isFinite(lng)) {
+                const device: Device = {
+                  id: deviceId,
+                  name: `Device ${deviceId.split('_').pop()}`,
+                  lat,
+                  lng,
+                  altitude: parseFloat(latestData.altitude || '0'),
+                  satellites: parseInt(latestData.satellites || '0'),
+                  speed: parseFloat(latestData.speed || '0'),
+                  waterLevel: parseFloat(latestData.waterLevel || '0'),
+                  waterFlow: parseFloat(latestData.waterFlow || '0.8'),
+                  waterSpeed: parseFloat(latestData.waterSpeed || '0'),
+                  status: latestData.status || 'Normal',
+                  timestamp: latestData.timestamp || new Date().toISOString(),
+                  airQuality: latestData.airQuality || 'Good',
+                  isRaining: Boolean(latestData.isRaining),
+                  prediction: latestData.prediction || 'No prediction available'
+                };
+                activeDevices.push(device);
               }
             }
           }
@@ -312,11 +313,29 @@ function Dashboard() {
 
         console.log(`Found ${activeDevices.length} active devices`);
         setDevices(activeDevices);
-        
+
         // Update selected device if it exists in active devices
         if (activeDevices.length > 0) {
           const currentDevice = activeDevices.find(d => d.id === selectedDevice.id) || activeDevices[0];
-          setSelectedDevice(currentDevice);
+          // Fetch the latest prediction for the selected device from Firebase
+          const deviceNode = devicesData[currentDevice.id];
+          let prediction = 'No prediction available';
+          if (deviceNode && typeof deviceNode === 'object' && deviceNode.prediction) {
+            prediction = deviceNode.prediction;
+          } else if (deviceNode && typeof deviceNode === 'object') {
+            // If time series, get latest prediction
+            const entries = Object.entries(deviceNode);
+            const lastEntry = entries.reduce((latest: any, current: any) => {
+              if (!latest || (current[1].timestamp && current[1].timestamp > latest[1].timestamp)) {
+                return current;
+              }
+              return latest;
+            }, null);
+            if (lastEntry && lastEntry[1].prediction) {
+              prediction = lastEntry[1].prediction;
+            }
+          }
+          setSelectedDevice({ ...currentDevice, prediction });
         }
 
       } catch (error) {
@@ -591,19 +610,23 @@ function Dashboard() {
               <h2 className="text-lg font-semibold">Prediction</h2>
               <AlertTriangle className="text-yellow-500" />
             </div>
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md mb-2">
-              <p className="text-yellow-800">{selectedDevice.prediction}</p>
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md mb-2">
+            <p className="text-yellow-800">
+              {selectedDevice.prediction && selectedDevice.prediction.trim() && selectedDevice.prediction.trim().toLowerCase() !== 'no prediction available'
+                ? selectedDevice.prediction
+                : 'No prediction available'}
+            </p>
+          </div>
+          <PredictionFeedback
+            onSubmit={handlePredictionFeedback}
+            value={predictionFeedback}
+            disabled={feedbackSubmitted || feedbackCooldown}
+          />
+          {feedbackSubmitted && (
+            <div className="mt-2 text-green-600 text-sm">
+              Thank you for your feedback!{feedbackCooldown && ' (You can submit again in 4 minutes)'}
             </div>
-            <PredictionFeedback
-              onSubmit={handlePredictionFeedback}
-              value={predictionFeedback}
-              disabled={feedbackSubmitted || feedbackCooldown}
-            />
-            {feedbackSubmitted && (
-              <div className="mt-2 text-green-600 text-sm">
-                Thank you for your feedback!{feedbackCooldown && ' (You can submit again in 4 minutes)'}
-              </div>
-            )}
+          )}
           </div>
 
           {/* Air Quality */}
