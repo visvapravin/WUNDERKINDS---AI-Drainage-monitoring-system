@@ -1,4 +1,78 @@
 import { useState, useEffect } from 'react';
+// Feedback component for prediction correctness
+import { useRef } from 'react';
+// Emoji faces for each score
+const feedbackEmojis = [
+  { emoji: '😡', label: 'Very Bad' },
+  { emoji: '😠', label: 'Bad' },
+  { emoji: '😕', label: 'Not Good' },
+  { emoji: '😐', label: 'Okay' },
+  { emoji: '😶', label: 'Average' },
+  { emoji: '🙂', label: 'Good' },
+  { emoji: '😊', label: 'Very Good' },
+  { emoji: '😃', label: 'Great' },
+  { emoji: '😁', label: 'Excellent' },
+  { emoji: '🤩', label: 'Perfect' },
+];
+
+function PredictionFeedback({ onSubmit, value, disabled }: { onSubmit: (score: number) => void, value: number | null, disabled?: boolean }) {
+  const [selected, setSelected] = useState<number | null>(value);
+  const [hovered, setHovered] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  return (
+    <div className="flex flex-col gap-2 mt-3" ref={containerRef}>
+      <label className="text-sm text-gray-700 mb-1">How accurate was this prediction?</label>
+      <div className="flex gap-1 flex-wrap items-center justify-start relative" style={{ minHeight: 56, overflow: 'visible' }}>
+        {feedbackEmojis.map((item, idx) => {
+          const num = idx + 1;
+          const isSelected = selected === num;
+          const isHovered = hovered === num;
+          return (
+            <div key={num} className="relative flex flex-col items-center justify-end">
+              <button
+                type="button"
+                className={`w-10 h-10 rounded-full border flex flex-col items-center justify-center text-xl font-semibold transition-all duration-200 relative
+                  ${isSelected ? 'bg-blue-600 text-white border-blue-600 scale-110 shadow-lg' :
+                    isHovered ? 'bg-blue-100 text-blue-700 border-blue-300 scale-105' :
+                    'bg-white text-gray-700 border-gray-300 hover:bg-blue-50'}
+                  ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                onClick={() => { setSelected(num); onSubmit(num); }}
+                onMouseEnter={() => setHovered(num)}
+                onMouseLeave={() => setHovered(null)}
+                disabled={disabled}
+                aria-label={`Rate ${num}: ${item.label}`}
+              >
+                <span className="transition-transform duration-200" style={{ transform: isSelected ? 'scale(1.2)' : 'scale(1)' }}>{item.emoji}</span>
+              </button>
+              {/* Tooltip always inside box */}
+              <span
+                className="z-10 px-2 py-1 rounded bg-white border border-gray-200 shadow text-xs text-gray-600 whitespace-nowrap pointer-events-none select-none absolute left-1/2 -translate-x-1/2"
+                style={{
+                  opacity: isHovered ? 1 : 0,
+                  transition: 'opacity 0.2s',
+                  bottom: -28,
+                  minWidth: 60,
+                  maxWidth: 100,
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {item.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {selected && (
+        <span className="text-xs text-blue-700 mt-1 flex items-center gap-1 animate-fade-in">
+          {feedbackEmojis[selected - 1].emoji} You rated: <span className="font-bold">{selected}/10</span> - {feedbackEmojis[selected - 1].label}
+        </span>
+      )}
+    </div>
+  );
+}
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Bell, Map as MapIcon, LogOut, Sun, Droplets, AlertTriangle, CloudDrizzle, CloudLightning, CloudRain, Wind } from 'lucide-react';
@@ -50,7 +124,89 @@ interface RainStatus {
   lastUpdated: string;
 }
 
+
 function Dashboard() {
+  // Helper: send notification to Firebase
+  const sendNotification = async (message: string) => {
+    try {
+      const notifRef = ref(db, `notifications/${selectedDevice.id}/${Date.now()}`);
+      await update(notifRef, {
+        message,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Failed to send notification:', err);
+    }
+  };
+  const [selectedDevice, setSelectedDevice] = useState<Device>(dummyDevice);
+  // ...existing code...
+
+  // Feedback state for prediction
+  const [predictionFeedback, setPredictionFeedback] = useState<number | null>(null);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [feedbackCooldown, setFeedbackCooldown] = useState(false);
+
+  // Helper: get unique key for device+prediction
+  const getFeedbackKey = () => {
+    return `feedback_${selectedDevice?.id || ''}_${selectedDevice?.prediction || ''}`;
+  };
+
+  // Check cooldown on mount or device/prediction change
+  useEffect(() => {
+    const key = getFeedbackKey();
+    const lastTime = localStorage.getItem(key);
+    if (lastTime) {
+      const diff = Date.now() - parseInt(lastTime, 10);
+      if (diff < 4 * 60 * 1000) {
+        setFeedbackCooldown(true);
+        setFeedbackSubmitted(true);
+        setTimeout(() => {
+          setFeedbackCooldown(false);
+          setFeedbackSubmitted(false);
+        }, 4 * 60 * 1000 - diff);
+      } else {
+        setFeedbackCooldown(false);
+        setFeedbackSubmitted(false);
+      }
+    } else {
+      setFeedbackCooldown(false);
+      setFeedbackSubmitted(false);
+    }
+    setPredictionFeedback(null);
+  }, [selectedDevice?.id, selectedDevice?.prediction]);
+
+  // Send feedback to Firebase for the selected device and prediction, only if not in cooldown
+  const handlePredictionFeedback = async (score: number) => {
+    if (feedbackCooldown) return;
+    setPredictionFeedback(score);
+    setFeedbackSubmitted(true);
+    setFeedbackCooldown(true);
+    try {
+      if (selectedDevice && selectedDevice.id) {
+        // Use timestamp to uniquely identify feedback for a prediction
+        const feedbackRef = ref(db, `feedback/${selectedDevice.id}/${Date.now()}`);
+        await update(feedbackRef, {
+          prediction: selectedDevice.prediction,
+          feedback: score,
+          timestamp: new Date().toISOString(),
+        });
+        // Store last feedback time in localStorage
+        const key = getFeedbackKey();
+        localStorage.setItem(key, Date.now().toString());
+        // Reset selection after sending
+        setTimeout(() => {
+          setFeedbackCooldown(false);
+          setFeedbackSubmitted(false);
+          setPredictionFeedback(null);
+        }, 4 * 60 * 1000);
+      }
+    } catch (err) {
+      // Optionally, handle error (show toast, etc.)
+      console.error('Failed to send feedback to Firebase:', err);
+      setFeedbackCooldown(false);
+      setFeedbackSubmitted(false);
+    }
+  };
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   // Redirect to login if not authenticated
@@ -63,7 +219,6 @@ function Dashboard() {
   const [notifications] = useState<string[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMap, setShowMap] = useState(false);
-  const [selectedDevice, setSelectedDevice] = useState<Device>(dummyDevice);
   const [devices, setDevices] = useState<Device[]>([]);
   const [waterLevelData] = useState(dummyGraphData);
   const [rainStatus, setRainStatus] = useState<RainStatus>({
@@ -114,7 +269,7 @@ function Dashboard() {
                 satellites: parseInt(latestData.satellites || '0'),
                 speed: parseFloat(latestData.speed || '0'),
                 waterLevel: parseFloat(latestData.waterLevel || '0'),
-                waterFlow: 0.80,
+                waterFlow: parseFloat(latestData.waterFlow || '0.8'),
                 waterSpeed: parseFloat(latestData.waterSpeed || '0'),
                 status: latestData.status || 'Normal',
                 timestamp: latestData.timestamp || new Date().toISOString(),
@@ -123,6 +278,34 @@ function Dashboard() {
                 prediction: latestData.prediction || 'No prediction available'
               };
               activeDevices.push(device);
+
+              // --- Anomaly detection and notification logic ---
+              // 1. Water level anomaly
+              if (device.waterLevel >= 2.0) {
+                sendNotification('Anomaly: Water level is very high!');
+              }
+              // 2. Harmful gas (simulate: airQuality not Good)
+              if (device.airQuality && device.airQuality !== 'Good') {
+                sendNotification(`Anomaly: Harmful gas detected (${device.airQuality})!`);
+              }
+              // 3. Heavy rain
+              if (latestData.rainStatus && latestData.rainStatus.status === 'Heavy Raining') {
+                sendNotification('Anomaly: Heavy rain detected!');
+              }
+              // 4. Very low or very high water flow
+              if (device.waterFlow < 0.2) {
+                sendNotification('Anomaly: Water flow is very low!');
+              }
+              if (device.waterFlow > 2.0) {
+                sendNotification('Anomaly: Water flow is very high!');
+              }
+              // 5. Speed anomaly (simulate: speed > 5 or < 0.1)
+              if (device.speed > 5) {
+                sendNotification('Anomaly: Device speed is abnormally high!');
+              }
+              if (device.speed < 0.1) {
+                sendNotification('Anomaly: Device speed is abnormally low!');
+              }
             }
           }
         });
@@ -138,6 +321,7 @@ function Dashboard() {
 
       } catch (error) {
         console.error('Error processing devices data:', error);
+        sendNotification('Error: Problem occurred while processing device data!');
       }
     });
 
@@ -401,8 +585,30 @@ function Dashboard() {
 
       <div className={`max-w-7xl mx-auto px-4 py-6 transition-all duration-300 ${showMap ? 'blur-sm opacity-60 pointer-events-none' : ''}`}> 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+          {/* Prediction Box moved to top */}
+          <div className="bg-white rounded-lg shadow p-6 col-span-full">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+              <h2 className="text-lg font-semibold">Prediction</h2>
+              <AlertTriangle className="text-yellow-500" />
+            </div>
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md mb-2">
+              <p className="text-yellow-800">{selectedDevice.prediction}</p>
+            </div>
+            <PredictionFeedback
+              onSubmit={handlePredictionFeedback}
+              value={predictionFeedback}
+              disabled={feedbackSubmitted || feedbackCooldown}
+            />
+            {feedbackSubmitted && (
+              <div className="mt-2 text-green-600 text-sm">
+                Thank you for your feedback!{feedbackCooldown && ' (You can submit again in 4 minutes)'}
+              </div>
+            )}
+          </div>
+
+          {/* Air Quality */}
           <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
               <h2 className="text-lg font-semibold">Air Quality</h2>
               <Sun className={selectedDevice.airQuality === 'Good' ? 'text-green-500' : 'text-red-500'} />
             </div>
@@ -411,8 +617,9 @@ function Dashboard() {
             </p>
           </div>
 
+          {/* Searchlight Control */}
           <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-base md:text-lg font-semibold mb-4">Searchlight Control</h2>
+            <h2 className="text-base md:text-lg font-semibold mb-4">Searchlight Control</h2>
             <button
               onClick={() => setSearchlight(!searchlight)}
               className={`w-full py-2 px-4 rounded-md ${
@@ -423,16 +630,18 @@ function Dashboard() {
             </button>
           </div>
 
+          {/* Water Flow Speed */}
           <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
               <h2 className="text-lg font-semibold">Water Flow Speed</h2>
               <Wind className="text-blue-500" />
             </div>
             <p className="text-2xl font-bold text-blue-600">{selectedDevice.waterFlow.toFixed(2)} m/s</p>
           </div>
 
+          {/* Rain Status, Precaution, Stickman */}
           <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow p-4">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold">Rain Status</h2>
                 {getRainIcon(rainStatus.status)}
@@ -488,64 +697,54 @@ function Dashboard() {
             </div>
           </div>
 
+          {/* Water Level Chart */}
           <div className="bg-white rounded-lg shadow p-6 col-span-2">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
-            <div className="flex items-center space-x-4">
-              <h2 className="text-lg font-semibold">Water Level</h2>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium
-                ${getDeviceStatus(selectedDevice).status === 'Danger' ? 'bg-red-100 text-red-800' : 
-                  getDeviceStatus(selectedDevice).status === 'Warning' ? 'bg-yellow-100 text-yellow-800' : 
-                  'bg-green-100 text-green-800'}`}>
-                {getDeviceStatus(selectedDevice).status}
-              </span>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+              <div className="flex items-center space-x-4">
+                <h2 className="text-lg font-semibold">Water Level</h2>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium
+                  ${getDeviceStatus(selectedDevice).status === 'Danger' ? 'bg-red-100 text-red-800' : 
+                    getDeviceStatus(selectedDevice).status === 'Warning' ? 'bg-yellow-100 text-yellow-800' : 
+                    'bg-green-100 text-green-800'}`}>
+                  {getDeviceStatus(selectedDevice).status}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowDownloadOptions(true)}
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download Data
+              </button>
             </div>
-            <button
-              onClick={() => setShowDownloadOptions(true)}
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Download Data
-            </button>
-          </div>
             <div className="flex items-center gap-2 mb-4">
               <span className="text-4xl font-bold">{selectedDevice.waterLevel.toFixed(2)}</span>
               <span className="text-gray-500">m</span>
             </div>
-            
             <div className="h-64 mt-4">
-            <div className="mt-8">
-              <ResponsiveContainer width="100%" height="80%" minWidth={150} minHeight={250}>
-                <LineChart data={waterLevelData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="time" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line 
-                    type="monotone" 
-                    dataKey="waterLevel" 
-                    stroke={
-                      getDeviceStatus(selectedDevice).status === 'Danger' ? '#dc2626' : 
-                      getDeviceStatus(selectedDevice).status === 'Warning' ? '#d97706' : 
-                      '#059669'
-                    }
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6 col-span-full">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
-              <h2 className="text-lg font-semibold">Prediction</h2>
-              <AlertTriangle className="text-yellow-500" />
-            </div>
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-yellow-800">{selectedDevice.prediction}</p>
+              <div className="mt-8">
+                <ResponsiveContainer width="100%" height="80%" minWidth={150} minHeight={250}>
+                  <LineChart data={waterLevelData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line 
+                      type="monotone" 
+                      dataKey="waterLevel" 
+                      stroke={
+                        getDeviceStatus(selectedDevice).status === 'Danger' ? '#dc2626' : 
+                        getDeviceStatus(selectedDevice).status === 'Warning' ? '#d97706' : 
+                        '#059669'
+                      }
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>
