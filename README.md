@@ -1,5 +1,3 @@
-
-
 ```markdown
 
 
@@ -166,6 +164,40 @@ A: Go to Firebase Console > Authentication > Users > Add user. Only users added 
 
 **Q: Can I use this project for my own portfolio or demo?**
 A: Yes! Just follow the setup steps and use your own Firebase/API keys.
+
+---
+
+## 📡 IoT Device Data Generation (ESP32 Example)
+
+This project includes an example ESP32 program for generating and uploading real-time sensor data to Firebase. The code is provided in two files:
+
+- `esp32_program.example.txt` — Safe for public sharing. Contains placeholders for WiFi and Firebase credentials.
+
+**How to use:**
+1. Copy `esp32_program.example.txt` to `esp32 program.txt`.
+2. Fill in your own WiFi and Firebase credentials in `esp32 program.txt`.
+3. Flash the code to your ESP32 device.
+
+The ESP32 code will connect to WiFi, read GPS data, and upload it to your Firebase Realtime Database at regular intervals.
+
+---
+
+## ☁️ Real-Time Weather Data Integration
+
+This project fetches real-time weather data using a weather API (such as OpenWeatherMap or similar). The weather data is used to:
+- Display current weather conditions for device locations.
+- Animate climate backgrounds (rain, storm, sunny, cloudy, flood) on the dashboard.
+- Enhance the user experience with live, context-aware visuals.
+
+**How it works:**
+- The frontend makes API requests using the key stored in your `.env` file (`VITE_WEATHER_API_KEY`).
+- Weather data is fetched and displayed alongside device metrics.
+- The dashboard background and UI elements update dynamically based on the latest weather info.
+
+**Setup:**
+- Obtain a free API key from your preferred weather data provider.
+- Add your key to the `.env` file as `VITE_WEATHER_API_KEY`.
+- The app will automatically use this key to fetch and display weather data in real time.
 
 ---
 
