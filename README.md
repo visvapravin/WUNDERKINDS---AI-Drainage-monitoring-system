@@ -157,10 +157,10 @@ For ideas or issues, please open a discussion or issue ticket.
 
 | Name             | GitHub                                              | Role              |
 | ---------------- | --------------------------------------------------- | ----------------- |
-| visvapravin R    | [@visvapravin](https://github.com/visvapravin)      | Core Developer    |
-| swashinie R      | [@Swashinie](https://github.com/Swashinie)          | Co-Developer      |
+| Visvapravin R    | [@visvapravin](https://github.com/visvapravin)      | Core Developer    |
+| Swashinie R      | [@Swashinie](https://github.com/Swashinie)          | Co-Developer      |
 | Tharanitharan K  | [@TharanitharanK](https://github.com/TharanitharanK)| Contributor       |
-
+| Shameem S        | [@ShameemS](https://github.com/Shamee3)             | Contributor       |
 
 ## 📄 License
 
